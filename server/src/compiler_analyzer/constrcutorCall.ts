@@ -8,7 +8,7 @@ import {TokenRange} from '../compiler_tokenizer/tokenRange';
 import {SymbolObjectHolder} from './symbolObject';
 import {Node_FuncCall, NodeName} from '../compiler_parser/nodeObject';
 import {stringifyResolvedType} from './symbolStringifier';
-import * as assert from 'node:assert';
+import assert = require('node:assert');
 
 export function findConstructorOfType(resolvedType: ResolvedType | undefined): SymbolObjectHolder | undefined {
     if (resolvedType?.scopePath === undefined) {

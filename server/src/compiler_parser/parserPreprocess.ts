@@ -3,7 +3,7 @@ import {diagnostic} from '../core/diagnostic';
 import {TokenHighlight} from '../core/highlight';
 import {TokenRange} from '../compiler_tokenizer/tokenRange';
 import {TextLocation, TextPosition} from '../compiler_tokenizer/textLocation';
-import * as assert from 'node:assert';
+import assert = require('node:assert');
 
 /**
  * Output of `preprocessAfterTokenize`.
