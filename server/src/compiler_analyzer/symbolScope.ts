@@ -1,3 +1,4 @@
+import {highlightTokenFromSymbol} from './symbolHighlight';
 import {
     isScopePathEquals,
     ScopePath,
@@ -333,6 +334,7 @@ export class SymbolScope {
      * @return undefined if the symbol is successfully inserted, or the symbol that already exists.
      */
     public insertSymbol(symbol: SymbolObject): SymbolObjectHolder | undefined {
+        highlightTokenFromSymbol(symbol.identifierToken, symbol);
         const identifier = symbol.identifierToken.text;
         const alreadyExists = this._symbolTable.get(identifier);
         if (alreadyExists === undefined) {
@@ -481,6 +483,7 @@ export class SymbolGlobalScope extends SymbolScope {
     }
 
     public pushReference(info: ReferenceMarker) {
+        highlightTokenFromSymbol(info.fromToken, info.toSymbol);
         this._context.markers.reference.push(info);
     }
 
