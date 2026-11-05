@@ -258,6 +258,9 @@ function profileInspect(document: lsp_textDocument.TextDocument) {
 // -----------------------------------------------
 // Semantic Tokens Provider
 s_connection.languages.semanticTokens.on(params => {
+    // Finish any pending analysis first: the analyzer recolours identifiers from the symbols they resolve to,
+    // and a client that caches tokens per document version would otherwise keep the parser-only colours.
+    s_inspector.flushRecord(params.textDocument.uri);
     return provideSemanticTokens(s_inspector.getRecord(params.textDocument.uri).rawTokens);
 });
 
