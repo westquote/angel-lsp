@@ -18,6 +18,11 @@
     },
     "scripts": {
         "test": "mocha",
-        "bundle": "tsc && npx esbuild src/server.ts --bundle --outfile=angelscript-language-server.js --minify --platform=node"
+        "bundle": "tsc && npx esbuild src/server.ts --bundle --outfile=angelscript-language-server.js --minify --platform=node",
+        "standalone": "tsc --noEmit && node build-standalone.mjs"
+    },
+    "devDependencies": {
+        "esbuild": "0.25.10",
+        "postject": "1.0.0-alpha.6"
     }
 }

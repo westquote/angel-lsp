@@ -27,3 +27,6 @@ tags
 # Persistent undo
 [._]*.un~
 
+
+# Standalone executables
+server/dist

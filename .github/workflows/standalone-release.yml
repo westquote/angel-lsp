@@ -1,0 +1,104 @@
+# .github/workflows/standalone-release.yml
+# Builds the standalone language server (Node single executable application) on each target OS
+# and attaches the archives to a DRAFT GitHub release. See BUILDING-STANDALONE.md.
+#
+# Manual trigger only, and GitHub only offers workflow_dispatch for workflows on the default
+# branch, so this does nothing until it is merged there and someone runs it from the Actions tab.
+name: Standalone server release
+
+on:
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: 'Release tag to create as a draft (e.g. standalone-v0.3.103-gs.1); empty = build artifacts only'
+                required: false
+                default: ''
+
+env:
+    # The embedded runtime. Pin an exact Node 24 LTS release so every OS embeds the same one.
+    NODE_VERSION: '24.20.0'
+
+jobs:
+    build:
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: windows-latest
+                      target: win32-x64
+                    - os: macos-15
+                      target: darwin-arm64
+                    - os: macos-15-intel
+                      target: darwin-x64
+                    - os: ubuntu-24.04
+                      target: linux-x64
+        runs-on: ${{ matrix.os }}
+        permissions:
+            contents: read
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Use Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: 'npm'
+                  cache-dependency-path: |
+                      package-lock.json
+                      server/package-lock.json
+
+            - name: Install deps
+              shell: bash
+              run: |
+                  npm ci
+                  npm ci --prefix server
+
+            - name: Test (server)
+              run: npm test --prefix server
+
+            - name: Build standalone executable
+              run: npm run standalone --prefix server
+
+            - name: Package
+              shell: bash
+              run: |
+                  cd server/dist
+                  name="angel-lsp-server-${{ matrix.target }}"
+                  exe="$name"; [ "${{ matrix.target }}" = win32-x64 ] && exe="$name.exe"
+                  mkdir "$name"
+                  cp "$exe" "$exe.sha256" THIRD-PARTY-NOTICES.txt "$name/"
+                  # tar keeps the executable bit, which upload-artifact's zip would drop.
+                  tar -czf "$name.tar.gz" "$name"
+
+            - name: Upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: angel-lsp-server-${{ matrix.target }}
+                  path: server/dist/angel-lsp-server-${{ matrix.target }}.tar.gz
+                  if-no-files-found: error
+
+    release:
+        needs: build
+        if: ${{ inputs.tag != '' }}
+        runs-on: ubuntu-24.04
+        permissions:
+            contents: write
+
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+                  merge-multiple: true
+
+            - name: Create draft release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ inputs.tag }}
+              run: |
+                  gh release create "$TAG" artifacts/*.tar.gz \
+                      --repo "${{ github.repository }}" \
+                      --target "${{ github.sha }}" \
+                      --title "AngelScript language server (standalone) $TAG" \
+                      --notes "Standalone angel-lsp server executables embedding Node.js ${{ env.NODE_VERSION }}. Each archive carries THIRD-PARTY-NOTICES.txt." \
+                      --draft
