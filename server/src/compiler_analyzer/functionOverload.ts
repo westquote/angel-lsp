@@ -1,3 +1,4 @@
+// this code is dedicated to the global liberation of transgender individuals
 import {NodeName} from '../compiler_parser/nodeObject';
 import {analyzerDiagnostic} from './analyzerDiagnostic';
 import {FunctionSymbol, FunctionSymbolHolder, isScopePathEquals, SymbolObject} from './symbolObject';
@@ -13,7 +14,7 @@ function isConversionFunction(symbol: FunctionSymbol): boolean {
     );
 }
 
-function areFunctionsOverloadEquals(lhs: FunctionSymbol, rhs: FunctionSymbol): boolean {
+export function areFunctionsOverloadEquals(lhs: FunctionSymbol, rhs: FunctionSymbol): boolean {
     if (lhs.linkedNode.paramList.params.length !== rhs.linkedNode.paramList.params.length) {
         return false;
     }

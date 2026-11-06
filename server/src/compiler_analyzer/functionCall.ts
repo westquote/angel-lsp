@@ -1,10 +1,12 @@
-import {FunctionSymbol, FunctionSymbolHolder, VariableSymbol} from './symbolObject';
-import {getActiveGlobalScope, resolveActiveScope} from './symbolScope';
+// this code is dedicated to the global liberation of transgender individuals
+import {FunctionSymbol, FunctionSymbolHolder, TypeSymbol, VariableSymbol} from './symbolObject';
+import {getActiveGlobalScope, resolveActiveScope, tryResolveActiveScope} from './symbolScope';
 import {applyTemplateMapping, ResolvedType, TemplateMapping} from './resolvedType';
 import {analyzerDiagnostic} from './analyzerDiagnostic';
 import {TokenObject} from '../compiler_tokenizer/tokenObject';
 import {TokenRange} from '../compiler_tokenizer/tokenRange';
-import {evaluateTypeConversion} from './typeConversion';
+import {canDownCast, evaluateTypeConversion} from './typeConversion';
+import {areFunctionsOverloadEquals} from './functionOverload';
 import {NodeName} from '../compiler_parser/nodeObject';
 import {causeTypeConversionSideEffect} from './typeConversionSideEffect';
 import {stringifyResolvedType, stringifyResolvedTypes} from './symbolStringifier';
@@ -162,6 +164,7 @@ function checkFunctionCallInternal(args: FunctionCallArgs): FunctionCallResult {
         }
     }
 
+    bestMatchings = dropOverriddenMethods(bestMatchings);
     bestMatchings = dropConstOverloadsWhenMutableExists(args, bestMatchings);
     const hasAmbiguousOverload = bestMatchings.length > 1;
     const bestMatching = bestMatchings[0];
@@ -206,6 +209,45 @@ function checkFunctionCallInternal(args: FunctionCallArgs): FunctionCallResult {
             }
         };
     }
+}
+
+/**
+ * A derived class's member table holds its own methods alongside the ones copied from its bases,
+ * so an override or interface implementation shows up next to the method it replaces.
+ * Keep only the most-derived one of each such pair.
+ */
+function dropOverriddenMethods(matchings: BestMatching[]): BestMatching[] {
+    if (matchings.length <= 1) {
+        return matchings;
+    }
+
+    return matchings.filter(
+        matching => !matchings.some(other => other !== matching && overridesMethod(other.function, matching.function))
+    );
+}
+
+function overridesMethod(derived: FunctionSymbol, base: FunctionSymbol): boolean {
+    if (!derived.isInstanceMember || !base.isInstanceMember) {
+        return false;
+    }
+
+    const derivedOwner = findOwnerType(derived);
+    const baseOwner = findOwnerType(base);
+    if (derivedOwner === undefined || baseOwner === undefined || derivedOwner.equals(baseOwner)) {
+        return false;
+    }
+
+    return canDownCast(derivedOwner, baseOwner) && areFunctionsOverloadEquals(derived, base);
+}
+
+function findOwnerType(method: FunctionSymbol): TypeSymbol | undefined {
+    const ownerName = method.scopePath.at(-1);
+    if (ownerName === undefined) {
+        return undefined;
+    }
+
+    const owner = tryResolveActiveScope(method.scopePath.slice(0, -1))?.lookupSymbol(ownerName);
+    return owner?.isType() ? owner : undefined;
 }
 
 function dropConstOverloadsWhenMutableExists(args: FunctionCallArgs, matchings: BestMatching[]): BestMatching[] {
